@@ -1,0 +1,200 @@
+{
+  "info": {
+    "_postman_id": "c1f7a2d8-9182-4f3b-a25e-38d581a941ef",
+    "name": "Backend Users & Auth API",
+    "description": "Postman collection for testing NestJS Auth and Users listing connected to MySQL Workbench.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        },
+        "description": "Verifies that the NestJS backend is running and connected to MySQL."
+      }
+    },
+    {
+      "name": "2. Register User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\",\n  \"role\": \"user\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register"]
+        },
+        "description": "Creates a new user record in the MySQL 'users' table."
+      }
+    },
+    {
+      "name": "3. Login User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.accessToken) {",
+              "    pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+              "    console.log('Access token saved:', jsonData.accessToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Logs in the user and automatically stores the accessToken into collection variable."
+      }
+    },
+    {
+      "name": "4. List All Users (GET /users)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": ["{{baseUrl}}"],
+          "path": ["users"]
+        },
+        "description": "Returns the list of all registered users from the MySQL database."
+      }
+    },
+    {
+      "name": "5. Get Single User by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "1"]
+        },
+        "description": "Fetch a specific user by their user_id."
+      }
+    },
+    {
+      "name": "6. Create User (POST /users)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"adminuser\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": ["{{baseUrl}}"],
+          "path": ["users"]
+        },
+        "description": "Create a user directly via /users endpoint."
+      }
+    },
+    {
+      "name": "7. Update User (PUT /users/:id)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"updated_username\",\n  \"role\": \"admin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "1"]
+        },
+        "description": "Updates username or role of a specific user."
+      }
+    },
+    {
+      "name": "8. Delete User (DELETE /users/:id)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "1"]
+        },
+        "description": "Deletes a user record from MySQL."
+      }
+    }
+  ]
+}
