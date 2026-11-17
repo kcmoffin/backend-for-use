@@ -14,6 +14,24 @@ export class UsersService {
   constructor(private db: DatabaseService) {}
 
   private pool = () => this.db.getPool();
+  private pkColumn: string | null = null;
+
+  private async getPrimaryKeyColumn(): Promise<string> {
+    if (this.pkColumn) return this.pkColumn;
+    try {
+      const [rows] = await this.pool().execute<RowDataPacket[]>(
+        "SHOW COLUMNS FROM users LIKE 'user_id'",
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        this.pkColumn = 'user_id';
+        return 'user_id';
+      }
+    } catch {
+      // Fallback
+    }
+    this.pkColumn = 'id';
+    return 'id';
+  }
 
   async createUser(username: string, password: string, role = 'user') {
     if (!username || !username.trim() || !password) {
@@ -84,10 +102,27 @@ export class UsersService {
 
   async findById(id: number) {
     try {
-      const [rows] = await this.pool().execute<RowDataPacket[]>(
-        'SELECT * FROM users WHERE user_id = ? OR id = ?',
-        [id, id],
-      );
+      const pk = await this.getPrimaryKeyColumn();
+      let rows: RowDataPacket[] = [];
+      try {
+        const [r] = await this.pool().execute<RowDataPacket[]>(
+          `SELECT * FROM users WHERE ${pk} = ?`,
+          [id],
+        );
+        rows = r;
+      } catch (err: any) {
+        if (err.code === 'ER_BAD_FIELD_ERROR' || err.errno === 1054) {
+          const altPk = pk === 'user_id' ? 'id' : 'user_id';
+          this.pkColumn = altPk;
+          const [r] = await this.pool().execute<RowDataPacket[]>(
+            `SELECT * FROM users WHERE ${altPk} = ?`,
+            [id],
+          );
+          rows = r;
+        } else {
+          throw err;
+        }
+      }
 
       if (!rows || rows.length === 0) return null;
 
@@ -161,11 +196,21 @@ export class UsersService {
       return this.findById(id);
     }
 
-    values.push(id, id);
-
     try {
-      const sql = `UPDATE users SET ${fields.join(', ')} WHERE user_id = ? OR id = ?`;
-      await this.pool().execute<OkPacket>(sql, values);
+      let pk = await this.getPrimaryKeyColumn();
+      try {
+        const sql = `UPDATE users SET ${fields.join(', ')} WHERE ${pk} = ?`;
+        await this.pool().execute<OkPacket>(sql, [...values, id]);
+      } catch (err: any) {
+        if (err.code === 'ER_BAD_FIELD_ERROR' || err.errno === 1054) {
+          pk = pk === 'user_id' ? 'id' : 'user_id';
+          this.pkColumn = pk;
+          const sql = `UPDATE users SET ${fields.join(', ')} WHERE ${pk} = ?`;
+          await this.pool().execute<OkPacket>(sql, [...values, id]);
+        } else {
+          throw err;
+        }
+      }
       return this.findById(id);
     } catch (err: any) {
       console.error('Error in updateUser:', err.message);
@@ -175,10 +220,27 @@ export class UsersService {
 
   async deleteUser(id: number) {
     try {
-      const [result] = await this.pool().execute<OkPacket>(
-        'DELETE FROM users WHERE user_id = ? OR id = ?',
-        [id, id],
-      );
+      let pk = await this.getPrimaryKeyColumn();
+      let result: OkPacket;
+      try {
+        const [res] = await this.pool().execute<OkPacket>(
+          `DELETE FROM users WHERE ${pk} = ?`,
+          [id],
+        );
+        result = res;
+      } catch (err: any) {
+        if (err.code === 'ER_BAD_FIELD_ERROR' || err.errno === 1054) {
+          pk = pk === 'user_id' ? 'id' : 'user_id';
+          this.pkColumn = pk;
+          const [res] = await this.pool().execute<OkPacket>(
+            `DELETE FROM users WHERE ${pk} = ?`,
+            [id],
+          );
+          result = res;
+        } else {
+          throw err;
+        }
+      }
       return result.affectedRows > 0;
     } catch (err: any) {
       console.error('Error in deleteUser:', err.message);
@@ -188,10 +250,24 @@ export class UsersService {
 
   async setRefreshToken(id: number, refreshToken: string | null) {
     try {
-      await this.pool().execute(
-        'UPDATE users SET refresh_token = ? WHERE user_id = ? OR id = ?',
-        [refreshToken, id, id],
-      );
+      let pk = await this.getPrimaryKeyColumn();
+      try {
+        await this.pool().execute(
+          `UPDATE users SET refresh_token = ? WHERE ${pk} = ?`,
+          [refreshToken, id],
+        );
+      } catch (err: any) {
+        if (err.code === 'ER_BAD_FIELD_ERROR' || err.errno === 1054) {
+          pk = pk === 'user_id' ? 'id' : 'user_id';
+          this.pkColumn = pk;
+          await this.pool().execute(
+            `UPDATE users SET refresh_token = ? WHERE ${pk} = ?`,
+            [refreshToken, id],
+          );
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
       console.warn('Could not update refresh_token in database:', err.message);
     }
