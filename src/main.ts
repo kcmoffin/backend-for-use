@@ -13,7 +13,7 @@ async function bootstrap() {
 
   // Allow frontend requests from localhost (any port), Vercel, and Postman
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // allow requests with no origin (like Postman, curl, mobile apps)
       if (!origin) return callback(null, true);
 
