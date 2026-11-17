@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -15,7 +15,9 @@ export class UsersController {
   // Get single user by id
   @Get(':id')
   async getOne(@Param('id') id: string) {
-    return this.userService.findById(+id);
+    const user = await this.userService.findById(+id);
+    if (!user) throw new NotFoundException(`User #${id} not found`);
+    return user;
   }
 
   // Create user (open - for demo)
@@ -28,13 +30,18 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
-    return this.userService.updateUser(+id, body);
+    const updated = await this.userService.updateUser(+id, body);
+    if (!updated) throw new NotFoundException(`User #${id} not found`);
+    return updated;
   }
 
   // Delete user (protected)
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return this.userService.deleteUser(+id);
+    const deleted = await this.userService.deleteUser(+id);
+    if (!deleted) throw new NotFoundException(`User #${id} not found`);
+    return { success: true, message: `User #${id} deleted successfully` };
   }
 }
